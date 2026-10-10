@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PRESSPLAY Books</title>
+<style>
+  :root {
+    --bg: #0d1411;
+    --panel: #15201b;
+    --line: #25352d;
+    --bot: #1b2a23;
+    --me: #1f7a4d;
+    --text: #e8f1ec;
+    --muted: #8fa89b;
+    --accent: #f2b632;
+    --danger: #ff6b6b;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 16px;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+  }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; padding-top: max(12px, env(safe-area-inset-top));
+    background: var(--panel); border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 17px; margin: 0; letter-spacing: .3px; }
+  header h1 span { color: var(--accent); }
+  #who { font-size: 13px; color: var(--muted); display: flex; gap: 10px; align-items: center; }
+  #who button { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 8px; padding: 4px 10px; font-size: 12px; }
+
+  /* login */
+  #login { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 24px; gap: 14px; }
+  #login h2 { margin: 0; font-size: 22px; }
+  #login p { margin: 0; color: var(--muted); font-size: 14px; }
+  #pin {
+    width: 100%; max-width: 280px; text-align: center; font-size: 28px; letter-spacing: 10px;
+    padding: 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--text);
+  }
+  #pin:focus { outline: 2px solid var(--accent); }
+  .btn { width: 100%; max-width: 280px; padding: 14px; border: 0; border-radius: 12px; background: var(--accent); color: #1a1400; font-weight: 700; font-size: 16px; }
+  .btn:disabled { opacity: .5; }
+  #loginErr { color: var(--danger); font-size: 14px; min-height: 20px; }
+
+  /* chat */
+  #chat { flex: 1; display: none; flex-direction: column; min-height: 0; }
+  #log { flex: 1; overflow-y: auto; padding: 14px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .msg { max-width: 88%; padding: 10px 13px; border-radius: 16px; white-space: pre-wrap; word-wrap: break-word; line-height: 1.4; font-size: 15px; }
+  .bot { background: var(--bot); align-self: flex-start; border-bottom-left-radius: 4px; }
+  .me { background: var(--me); align-self: flex-end; border-bottom-right-radius: 4px; }
+  .msg.wide { max-width: 100%; padding: 8px 6px; }
+  .msg.wide .seg { padding: 0 6px; }
+  .seg { white-space: pre-wrap; }
+  .tw { overflow-x: auto; margin: 6px 0; white-space: normal; -webkit-overflow-scrolling: touch; }
+  .tw table { border-collapse: collapse; width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .tw th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12px; padding: 5px 4px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .tw td { padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .tw tr:last-child td { border-bottom: 0; }
+  .tw tbody tr:nth-child(even) td { background: rgba(255,255,255,.03); }
+  .tw .num { text-align: right; white-space: nowrap; }
+  .tw .pos { color: #6fe3a0; font-weight: 600; }
+  .tw .neg { color: #ff8f8f; font-weight: 600; }
+  .tw .dim { color: var(--muted); }
+  .ask { display: flex; gap: 10px; margin-top: 10px; }
+  .ask button { flex: 1; padding: 11px; border-radius: 12px; border: 1px solid var(--accent); background: var(--bg); color: var(--accent); font-size: 16px; font-weight: 700; }
+  .err { color: var(--danger); }
+  .typing { color: var(--muted); }
+  #chips { display: flex; gap: 8px; padding: 8px 12px; overflow-x: auto; border-top: 1px solid var(--line); background: var(--panel); }
+  .chip { flex: none; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 14px; }
+  .chip.cmd { color: var(--accent); }
+  .chip.mode { border-color: var(--accent); }
+  #bar { display: flex; gap: 8px; padding: 8px 12px; padding-bottom: max(10px, env(safe-area-inset-bottom)); background: var(--panel); }
+  #txt { flex: 1; padding: 13px 14px; border-radius: 22px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 16px; }
+  #txt:focus { outline: 2px solid var(--accent); }
+  #send { width: 48px; border: 0; border-radius: 50%; background: var(--accent); color: #1a1400; font-size: 20px; font-weight: 700; }
+  #send:disabled { opacity: .5; }
+  #mic { width: 48px; border: 1px solid var(--line); border-radius: 50%; background: var(--bg); font-size: 20px; }
+  #mic.on { background: var(--danger); border-color: var(--danger); animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: .55; } }
+  .chk { font-weight: 700; margin-top: 4px; }
+  .ask.wrap { flex-wrap: wrap; }
+  .ask button.sec { border-color: var(--line); color: var(--text); flex: 0 0 auto; padding: 11px 16px; }
+</style>
+</head>
+<body>
+<header>
+  <h1><span>▶</span> <span id="biz" style="color:inherit">PRESSPLAY</span> Books</h1>
+  <div id="who" style="display:none"><span id="name"></span><button id="logout">Log out</button></div>
+</header>
+
+<section id="login">
+  <h2>Enter your PIN</h2>
+  <p>Ask the owner if you don't have one.</p>
+  <input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="••••">
+  <button class="btn" id="go">Open</button>
+  <div id="loginErr"></div>
+</section>
+
+<section id="chat">
+  <div id="log" aria-live="polite"></div>
+  <div id="chips"></div>
+  <form id="bar" autocomplete="off">
+    <input id="txt" type="text" placeholder="ps5 1hour 400 cash" enterkeyhint="send" autocapitalize="none" autocorrect="off" spellcheck="false">
+    <button id="mic" type="button" aria-label="Speak">🎤</button>
+    <button id="send" type="submit" aria-label="Send">➤</button>
+  </form>
+</section>
+
+<script>
+// ---------------------------------------------------------------------------------------------
+// Hosting outside Google (needed for the in-app 🎤 on phones): paste your Web app URL (ends in /exec)
+// between the quotes below. Inside Google Apps Script this is ignored.
+var API_URL = 'https://script.google.com/macros/s/AKfycbydoJ2Mdzp2NRfLjEDwT89hj9srpMPn7qa1zarazBhaMXD1ppCKkYUIqOXpf1MedgimtA/exec';
+// ---------------------------------------------------------------------------------------------
+(function () {
+  // Outside Apps Script there is no google.script.run: talk to the same functions through doPost.
+  if (window.google && window.google.script && window.google.script.run) return;
+  function call(fn, args, ok, fail) {
+    if (!API_URL) { fail(new Error('API_URL is empty')); return; }
+    fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ fn: fn, args: args }) })
+      .then(function (r) { return r.json(); })
+      .then(ok, fail);
+  }
+  function runner() {
+    var s = function () {}, f = function () {};
+    var r = {
+      withSuccessHandler: function (fn) { s = fn; return r; },
+      withFailureHandler: function (fn) { f = fn; return r; }
+    };
+    ['apiLogin', 'apiSend', 'apiPreview'].forEach(function (n) {
+      r[n] = function () { call(n, Array.prototype.slice.call(arguments), s, f); };
+    });
+    return r;
+  }
+  window.PP_VIA_API = true;
+  window.google = window.google || {};
+  window.google.script = { get run() { return runner(); } };
+})();
+</script>
+<script>
+(function () {
+  var PIN = '';
+  var busy = false;
+  var $ = function (id) { return document.getElementById(id); };
+
+  function store(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
+  function load(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+
+  function addMsg(text, cls) {
+    var d = document.createElement('div');
+    d.className = 'msg ' + cls;
+    d.textContent = text;
+    $('log').appendChild(d);
+    $('log').scrollTop = $('log').scrollHeight;
+    return d;
+  }
+
+  // Bot replies may contain table lines like  | a | b |  (and a |---| separator). They become real HTML tables.
+  // Only textContent is used, so nothing typed by a user can inject markup.
+  function splitRow(line) {
+    return line.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(function (c) { return c.trim(); });
+  }
+  function isNumCol(h) { return /^(amount|reading|used|played|total|hours)$/i.test(h); }
+  function buildTable(lines) {
+    var rows = lines.filter(function (l) { return !/^\s*\|[\s|:-]+\|\s*$/.test(l); }).map(splitRow);
+    var head = rows.shift() || [];
+    var wrap = document.createElement('div'); wrap.className = 'tw';
+    var t = document.createElement('table');
+    var thead = document.createElement('thead'), tr = document.createElement('tr');
+    head.forEach(function (h) {
+      var th = document.createElement('th'); th.textContent = h;
+      if (isNumCol(h)) th.className = 'num';
+      tr.appendChild(th);
+    });
+    thead.appendChild(tr); t.appendChild(thead);
+    var tb = document.createElement('tbody');
+    rows.forEach(function (r) {
+      var row = document.createElement('tr');
+      head.forEach(function (h, i) {
+        var td = document.createElement('td'), v = r[i] === undefined ? '' : r[i];
+        td.textContent = v;
+        var cls = [];
+        if (isNumCol(h)) cls.push('num');
+        if (/^amount$/i.test(h)) cls.push(v.charAt(0) === '+' ? 'pos' : v.charAt(0) === '\u2212' ? 'neg' : '');
+        if (v === '\u2014') cls.push('dim');
+        if (/^(#|time)$/i.test(h)) cls.push('dim');
+        td.className = cls.join(' ');
+        row.appendChild(td);
+      });
+      tb.appendChild(row);
+    });
+    t.appendChild(tb); wrap.appendChild(t);
+    return wrap;
+  }
+  function renderReply(el, text) {
+    el.textContent = '';
+    var lines = String(text).split('\n'), buf = [], tbl = [], hasTable = false;
+    function flushText() {
+      if (!buf.length) return;
+      var d = document.createElement('div'); d.className = 'seg'; d.textContent = buf.join('\n').replace(/^\n+/, '');
+      el.appendChild(d); buf = [];
+    }
+    function flushTable() {
+      if (!tbl.length) return;
+      el.appendChild(buildTable(tbl)); tbl = []; hasTable = true;
+    }
+    lines.forEach(function (l) {
+      if (/^\s*\|.*\|\s*$/.test(l)) { flushText(); tbl.push(l); }
+      else { flushTable(); buf.push(l); }
+    });
+    flushTable(); flushText();
+    if (hasTable) el.classList.add('wide');
+  }
+
+  function showLogin(err) {
+    $('chat').style.display = 'none';
+    $('login').style.display = 'flex';
+    $('who').style.display = 'none';
+    $('loginErr').textContent = err || '';
+    $('pin').value = '';
+    $('go').disabled = false;
+    $('pin').focus();
+  }
+
+  function showChat(res) {
+    $('biz').textContent = res.business || 'PRESSPLAY';
+    $('name').textContent = res.name + (res.role === 'admin' ? ' · admin' : '');
+    $('who').style.display = 'flex';
+    $('login').style.display = 'none';
+    $('chat').style.display = 'flex';
+    $('log').innerHTML = '';
+    addMsg('Hi ' + res.name + ' 👋\nType a sale like  ps5 1hour 400 cash\nor  vr 30min 300 upi\nor  private screening 1500 cash\nor an expense like  exp snacks 50 cash\nElectricity meter:  meter 700\nOr tap 🎤 and say it, e.g. PS5 400 rupees 1 hour 3 players\nType  help  for everything else.', 'bot');
+
+    var chips = $('chips');
+    chips.innerHTML = '';
+    (res.chips || []).forEach(function (c) { addChip(c, c.toLowerCase() + ' ', false); });
+    addChip('Expense', 'exp ', false);
+    addAppendChip('Cash', 'cash');
+    addAppendChip('UPI', 'upi');
+    addChip('Meter', 'meter ', false);
+    addChip('today', 'today', true);
+    if (res.role === 'admin') { addChip('month', 'month', true); addChip('balance', 'balance', true); }
+    addChip('meter list', 'meter list', true);
+    addChip('games', 'games', true);
+    ['undo', 'help'].forEach(function (c) { addChip(c, c, true); });
+    $('txt').focus();
+  }
+
+  // adds a word (cash / upi) to whatever is already typed, so the order does not matter
+  function addAppendChip(label, word) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip mode';
+    b.textContent = label;
+    b.onclick = function () {
+      var v = $('txt').value.replace(/\s+$/, '');
+      $('txt').value = (v ? v + ' ' : '') + word + ' ';
+      $('txt').focus();
+    };
+    $('chips').appendChild(b);
+  }
+
+  function addChip(label, value, isCmd) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip' + (isCmd ? ' cmd' : '');
+    b.textContent = label;
+    b.onclick = function () {
+      if (isCmd) { send(value); }
+      else { $('txt').value = value; $('txt').focus(); }
+    };
+    $('chips').appendChild(b);
+  }
+
+  function login(pin, silent) {
+    if (!pin) return;
+    $('go').disabled = true;
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (res && res.ok) { PIN = pin; store('pp_pin', pin); showChat(res); }
+        else { store('pp_pin', null); showLogin(silent ? '' : (res && res.error) || 'Could not log in.'); }
+      })
+      .withFailureHandler(function () {
+        showLogin(silent ? '' : 'Network problem. Try again.');
+      })
+      .apiLogin(pin);
+  }
+
+  function send(text, quiet) {
+    text = (text || '').trim();
+    if (!text || busy) return;
+    busy = true;
+    $('send').disabled = true;
+    if (!quiet) addMsg(text, 'me');
+    $('txt').value = '';
+    var wait = addMsg('…', 'bot typing');
+    google.script.run
+      .withSuccessHandler(function (res) {
+        busy = false; $('send').disabled = false;
+        if (res && res.ok) {
+          wait.className = 'msg bot';
+          renderReply(wait, res.reply);
+          if (res.reply.indexOf('\uD83D\uDCB3') === 0) { // 💳 "Cash or UPI?" question: one tap answers it
+            var row = document.createElement('div'); row.className = 'ask';
+            ['Cash', 'UPI'].forEach(function (w) {
+              var b = document.createElement('button'); b.type = 'button'; b.textContent = w;
+              b.onclick = function () { row.remove(); send(w.toLowerCase()); };
+              row.appendChild(b);
+            });
+            wait.appendChild(row);
+          }
+        } else {
+          wait.className = 'msg bot err';
+          wait.textContent = (res && res.error) || 'Something went wrong.';
+          if (res && /PIN/.test(res.error || '')) { store('pp_pin', null); setTimeout(function () { showLogin(res.error); }, 1200); }
+        }
+        $('log').scrollTop = $('log').scrollHeight;
+        $('txt').focus();
+      })
+      .withFailureHandler(function () {
+        busy = false; $('send').disabled = false;
+        wait.className = 'msg bot err';
+        wait.textContent = 'Network problem — this was NOT saved. Please send it again.';
+      })
+      .apiSend(PIN, text);
+  }
+
+  // ---------------- voice: speak -> check what was understood -> Save or Edit ----------------
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var rec = null, listening = false;
+  function voiceHelp(why) {
+    var tip = window.PP_VIA_API
+      ? 'Allow the microphone for this site in your phone settings and try again.'
+      : 'Google blocks the microphone on this link. Ask the owner for the new app link (github.io) to use the 🎤 button.';
+    addMsg('🎤 Voice could not start' + (why ? ' (' + why + ')' : '') + '.\n' + tip +
+      '\nFor now: tap the 🎤 on your phone keyboard and speak. The words appear in the box: check them, then press ➤.', 'bot');
+    $('txt').focus();
+  }
+  function micOff() {
+    listening = false;
+    $('mic').classList.remove('on');
+    $('txt').placeholder = 'ps5 1hour 400 cash';
+  }
+  $('mic').onclick = function () {
+    if (busy) return;
+    if (!SR) { voiceHelp(''); return; }
+    if (listening && rec) { rec.stop(); return; }
+    var heard = '', failed = false;
+    rec = new SR();
+    rec.lang = 'en-IN';
+    rec.interimResults = true;
+    rec.continuous = false;
+    rec.maxAlternatives = 1;
+    rec.onstart = function () {
+      listening = true;
+      $('mic').classList.add('on');
+      $('txt').value = '';
+      $('txt').placeholder = 'Listening… e.g. PS5 400 rupees 1 hour 3 players cash';
+    };
+    rec.onresult = function (e) {
+      var all = '';
+      for (var i = 0; i < e.results.length; i++) all += e.results[i][0].transcript;
+      $('txt').value = all; // live text while speaking
+      heard = all;
+    };
+    rec.onerror = function (e) {
+      failed = true;
+      micOff();
+      if (e.error === 'no-speech') addMsg("🎤 Didn't hear anything. Tap 🎤 and try again.", 'bot');
+      else if (e.error !== 'aborted') voiceHelp(e.error);
+    };
+    rec.onend = function () {
+      micOff();
+      if (failed) return;
+      heard = (heard || '').trim();
+      $('txt').value = '';
+      if (heard) previewVoice(heard);
+    };
+    try { rec.start(); } catch (err) { micOff(); voiceHelp(''); }
+  };
+
+  function previewVoice(text) {
+    addMsg('🎤 ' + text, 'me');
+    var wait = addMsg('…', 'bot typing');
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok) {
+          wait.className = 'msg bot err';
+          wait.textContent = (res && res.error) || 'Something went wrong.';
+          return;
+        }
+        if (res.kind === 'command') { wait.remove(); send(text, true); return; } // e.g. "today": nothing to check
+        wait.className = 'msg bot';
+        wait.textContent = '';
+        var head = document.createElement('div');
+        head.textContent = res.kind === 'entry' ? 'Is this right?' : '⚠️ I could not read that:';
+        var body = document.createElement('div');
+        body.className = res.kind === 'entry' ? 'chk' : '';
+        body.textContent = res.summary;
+        wait.appendChild(head); wait.appendChild(body);
+        if (res.kind === 'entry' && res.needMode) {
+          var q = document.createElement('div'); q.textContent = 'Paid by? Tap to save:'; q.style.marginTop = '6px';
+          wait.appendChild(q);
+        }
+        var row = document.createElement('div');
+        row.className = 'ask wrap';
+        var btn = function (label, cls, fn) {
+          var b = document.createElement('button'); b.type = 'button'; b.textContent = label;
+          if (cls) b.className = cls;
+          b.onclick = function () { row.remove(); fn(); };
+          row.appendChild(b);
+        };
+        if (res.kind === 'entry') {
+          if (res.needMode) {
+            btn('✓ Cash', '', function () { send(text + ' cash', true); });
+            btn('✓ UPI', '', function () { send(text + ' upi', true); });
+          } else {
+            btn('✓ Save', '', function () { send(text, true); });
+          }
+        }
+        btn('✎ Edit', 'sec', function () { $('txt').value = text; $('txt').focus(); });
+        wait.appendChild(row);
+        $('log').scrollTop = $('log').scrollHeight;
+      })
+      .withFailureHandler(function () {
+        wait.className = 'msg bot err';
+        wait.textContent = 'Network problem: nothing was saved. Try again.';
+      })
+      .apiPreview(PIN, text);
+  }
+
+  $('go').onclick = function () { login($('pin').value.trim(), false); };
+  $('pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') login($('pin').value.trim(), false); });
+  $('bar').addEventListener('submit', function (e) { e.preventDefault(); send($('txt').value); });
+  $('logout').onclick = function () { store('pp_pin', null); PIN = ''; showLogin(''); };
+
+  var saved = load('pp_pin');
+  if (saved) login(saved, true); else $('pin').focus();
+})();
+</script>
+</body>
+</html>
