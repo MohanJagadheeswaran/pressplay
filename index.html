@@ -129,8 +129,17 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbydoJ2Mdzp2NRfLjEDwT89hj9
   function call(fn, args, ok, fail) {
     if (!API_URL) { fail(new Error('API_URL is empty')); return; }
     fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ fn: fn, args: args }) })
-      .then(function (r) { return r.json(); })
-      .then(ok, fail);
+      .then(function (r) { return r.text(); })
+      .then(function (t) {
+        var j;
+        try { j = JSON.parse(t); } catch (e) {
+          // Google sent an error page instead of an answer (script error, quota, or a deploy in progress)
+          var m = /<title>([^<]*)<\/title>/i.exec(t) || /TypeError[^<]*|ReferenceError[^<]*|Exception[^<]*/.exec(t);
+          throw new Error('server error' + (m ? ': ' + (m[1] || m[0]).slice(0, 120) : ''));
+        }
+        ok(j);
+      })
+      .catch(fail);
   }
   function runner() {
     var s = function () {}, f = function () {};
@@ -366,10 +375,11 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbydoJ2Mdzp2NRfLjEDwT89hj9
         $('log').scrollTop = $('log').scrollHeight;
         $('txt').focus();
       })
-      .withFailureHandler(function () {
+      .withFailureHandler(function (err) {
         busy = false; $('send').disabled = false;
         wait.className = 'msg bot err';
-        wait.textContent = 'Network problem — this was NOT saved. Please send it again.';
+        var why = err && err.message && err.message !== 'Failed to fetch' ? err.message : 'network problem';
+        wait.textContent = 'Not saved (' + why + '). Please send it again.';
       })
       .apiSend(PIN, text);
   }
@@ -476,9 +486,10 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbydoJ2Mdzp2NRfLjEDwT89hj9
         wait.appendChild(row);
         $('log').scrollTop = $('log').scrollHeight;
       })
-      .withFailureHandler(function () {
+      .withFailureHandler(function (err) {
         wait.className = 'msg bot err';
-        wait.textContent = 'Network problem: nothing was saved. Try again.';
+        var why = err && err.message && err.message !== 'Failed to fetch' ? err.message : 'network problem';
+        wait.textContent = 'Nothing was saved (' + why + '). Try again.';
       })
       .apiPreview(PIN, text);
   }
