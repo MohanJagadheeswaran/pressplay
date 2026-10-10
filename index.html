@@ -89,6 +89,7 @@
   .chk { font-weight: 700; margin-top: 4px; }
   .ask.wrap { flex-wrap: wrap; }
   .ask button.full { flex: 1 1 100%; }
+  .ask button.cancel { color: var(--muted); }
   .ask button.sec { border-color: var(--line); color: var(--text); flex: 0 0 auto; padding: 11px 16px; }
 </style>
 </head>
@@ -225,6 +226,17 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbydoJ2Mdzp2NRfLjEDwT89hj9
   }
 
   // "👉 ps5 1hour 400 cash" from the bot becomes a one-tap button that sends the corrected message
+  // ✕ Cancel: nothing is saved. server=true also tells the server to drop a held "Cash or UPI?" entry.
+  function cancelBtn(row, server) {
+    var c = document.createElement('button'); c.type = 'button'; c.className = 'sec cancel'; c.textContent = '✕ Cancel';
+    c.onclick = function () {
+      row.remove();
+      if (server) send('cancel', true);
+      else addMsg('✕ Cancelled. Nothing was saved.', 'bot');
+    };
+    return c;
+  }
+
   function useButtons(fixes) {
     var row = document.createElement('div'); row.className = 'ask wrap';
     fixes.forEach(function (f) {
@@ -235,6 +247,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbydoJ2Mdzp2NRfLjEDwT89hj9
     var e = document.createElement('button'); e.type = 'button'; e.className = 'sec'; e.textContent = '✎ Edit';
     e.onclick = function () { row.remove(); $('txt').value = fixes[0].text; $('txt').focus(); };
     row.appendChild(e);
+    row.appendChild(cancelBtn(row, false));
     return row;
   }
 
@@ -338,10 +351,11 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbydoJ2Mdzp2NRfLjEDwT89hj9
           if (res.reply.indexOf('\uD83D\uDCB3') === 0) { // 💳 "Cash or UPI?" question: one tap answers it
             var row = document.createElement('div'); row.className = 'ask';
             ['Cash', 'UPI'].forEach(function (w) {
-              var b = document.createElement('button'); b.type = 'button'; b.textContent = w;
+              var b = document.createElement('button'); b.type = 'button'; b.textContent = '✓ ' + w;
               b.onclick = function () { row.remove(); send(w.toLowerCase()); };
               row.appendChild(b);
             });
+            row.appendChild(cancelBtn(row, true));
             wait.appendChild(row);
           }
         } else {
@@ -458,6 +472,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbydoJ2Mdzp2NRfLjEDwT89hj9
           btn('✓ ' + ((res.labels && res.labels[i]) || sg), 'full', function () { send(sg, true); });
         });
         btn('✎ Edit', 'sec', function () { $('txt').value = text; $('txt').focus(); });
+        row.appendChild(cancelBtn(row, false));
         wait.appendChild(row);
         $('log').scrollTop = $('log').scrollHeight;
       })
