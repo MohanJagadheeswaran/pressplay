@@ -88,6 +88,7 @@
   @keyframes pulse { 50% { opacity: .55; } }
   .chk { font-weight: 700; margin-top: 4px; }
   .ask.wrap { flex-wrap: wrap; }
+  .ask button.full { flex: 1 1 100%; }
   .ask button.sec { border-color: var(--line); color: var(--text); flex: 0 0 auto; padding: 11px 16px; }
 </style>
 </head>
@@ -203,7 +204,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbydoJ2Mdzp2NRfLjEDwT89hj9
   }
   function renderReply(el, text) {
     el.textContent = '';
-    var lines = String(text).split('\n'), buf = [], tbl = [], hasTable = false;
+    var lines = String(text).split('\n'), buf = [], tbl = [], hasTable = false, fixes = [];
     function flushText() {
       if (!buf.length) return;
       var d = document.createElement('div'); d.className = 'seg'; d.textContent = buf.join('\n').replace(/^\n+/, '');
@@ -215,21 +216,25 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbydoJ2Mdzp2NRfLjEDwT89hj9
     }
     lines.forEach(function (l) {
       if (/^\s*\|.*\|\s*$/.test(l)) { flushText(); tbl.push(l); }
-      else if (l.indexOf('\uD83D\uDC49 ') === 0) { flushTable(); flushText(); el.appendChild(useButton(l.slice(3))); } // 👉 ready-to-send fix
+      else if (l.indexOf('\uD83D\uDC49 ') === 0) { flushTable(); flushText(); var pr = l.slice(3).split(' \u2016 '); fixes.push({ text: pr[0], label: pr[1] }); } // 👉 text ‖ label
       else { flushTable(); buf.push(l); }
     });
     flushTable(); flushText();
+    if (fixes.length) el.appendChild(useButtons(fixes));
     if (hasTable) el.classList.add('wide');
   }
 
   // "👉 ps5 1hour 400 cash" from the bot becomes a one-tap button that sends the corrected message
-  function useButton(fix) {
+  function useButtons(fixes) {
     var row = document.createElement('div'); row.className = 'ask wrap';
-    var b = document.createElement('button'); b.type = 'button'; b.textContent = '✓ Use: ' + fix;
-    b.onclick = function () { row.remove(); send(fix); };
+    fixes.forEach(function (f) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'full'; b.textContent = '✓ ' + (f.label || f.text);
+      b.onclick = function () { row.remove(); send(f.text); };
+      row.appendChild(b);
+    });
     var e = document.createElement('button'); e.type = 'button'; e.className = 'sec'; e.textContent = '✎ Edit';
-    e.onclick = function () { row.remove(); $('txt').value = fix; $('txt').focus(); };
-    row.appendChild(b); row.appendChild(e);
+    e.onclick = function () { row.remove(); $('txt').value = fixes[0].text; $('txt').focus(); };
+    row.appendChild(e);
     return row;
   }
 
@@ -423,7 +428,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbydoJ2Mdzp2NRfLjEDwT89hj9
         wait.className = 'msg bot';
         wait.textContent = '';
         var head = document.createElement('div');
-        head.textContent = res.kind === 'entry' ? (res.ai ? '🤖 I think you meant — is this right?' : 'Is this right?') : '⚠️ I could not read that:';
+        head.textContent = res.kind === 'entry' ? (res.ai ? '🤖 I think you meant — is this right?' : 'Is this right?') : (res.suggests && res.suggests.length ? '🤔 Which one?' : '⚠️ I could not read that:');
         var body = document.createElement('div');
         body.className = res.kind === 'entry' ? 'chk' : '';
         body.textContent = res.summary;
@@ -449,7 +454,9 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbydoJ2Mdzp2NRfLjEDwT89hj9
             btn('✓ Save', '', function () { send(res.text || text, true); });
           }
         }
-        if (res.kind === 'error' && res.suggest) btn('✓ Use: ' + res.suggest, '', function () { send(res.suggest, true); });
+        if (res.kind === 'error') (res.suggests || []).forEach(function (sg, i) {
+          btn('✓ ' + ((res.labels && res.labels[i]) || sg), 'full', function () { send(sg, true); });
+        });
         btn('✎ Edit', 'sec', function () { $('txt').value = text; $('txt').focus(); });
         wait.appendChild(row);
         $('log').scrollTop = $('log').scrollHeight;
