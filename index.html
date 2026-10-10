@@ -423,7 +423,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbydoJ2Mdzp2NRfLjEDwT89hj9
         wait.className = 'msg bot';
         wait.textContent = '';
         var head = document.createElement('div');
-        head.textContent = res.kind === 'entry' ? 'Is this right?' : '⚠️ I could not read that:';
+        head.textContent = res.kind === 'entry' ? (res.ai ? '🤖 I think you meant — is this right?' : 'Is this right?') : '⚠️ I could not read that:';
         var body = document.createElement('div');
         body.className = res.kind === 'entry' ? 'chk' : '';
         body.textContent = res.summary;
@@ -442,10 +442,11 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbydoJ2Mdzp2NRfLjEDwT89hj9
         };
         if (res.kind === 'entry') {
           if (res.needMode) {
-            btn('✓ Cash', '', function () { send(text + ' cash', true); });
-            btn('✓ UPI', '', function () { send(text + ' upi', true); });
+            var t2 = res.text || text;
+            btn('✓ Cash', '', function () { send(t2 + ' cash', true); });
+            btn('✓ UPI', '', function () { send(t2 + ' upi', true); });
           } else {
-            btn('✓ Save', '', function () { send(text, true); });
+            btn('✓ Save', '', function () { send(res.text || text, true); });
           }
         }
         if (res.kind === 'error' && res.suggest) btn('✓ Use: ' + res.suggest, '', function () { send(res.suggest, true); });
