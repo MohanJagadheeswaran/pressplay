@@ -215,10 +215,22 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbydoJ2Mdzp2NRfLjEDwT89hj9
     }
     lines.forEach(function (l) {
       if (/^\s*\|.*\|\s*$/.test(l)) { flushText(); tbl.push(l); }
+      else if (l.indexOf('\uD83D\uDC49 ') === 0) { flushTable(); flushText(); el.appendChild(useButton(l.slice(3))); } // 👉 ready-to-send fix
       else { flushTable(); buf.push(l); }
     });
     flushTable(); flushText();
     if (hasTable) el.classList.add('wide');
+  }
+
+  // "👉 ps5 1hour 400 cash" from the bot becomes a one-tap button that sends the corrected message
+  function useButton(fix) {
+    var row = document.createElement('div'); row.className = 'ask wrap';
+    var b = document.createElement('button'); b.type = 'button'; b.textContent = '✓ Use: ' + fix;
+    b.onclick = function () { row.remove(); send(fix); };
+    var e = document.createElement('button'); e.type = 'button'; e.className = 'sec'; e.textContent = '✎ Edit';
+    e.onclick = function () { row.remove(); $('txt').value = fix; $('txt').focus(); };
+    row.appendChild(b); row.appendChild(e);
+    return row;
   }
 
   function showLogin(err) {
@@ -281,16 +293,25 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbydoJ2Mdzp2NRfLjEDwT89hj9
     $('chips').appendChild(b);
   }
 
-  function login(pin, silent) {
+  // background = the chat is already showing from the saved session; this only re-checks the PIN quietly
+  function login(pin, silent, background) {
     if (!pin) return;
     $('go').disabled = true;
     google.script.run
       .withSuccessHandler(function (res) {
-        if (res && res.ok) { PIN = pin; store('pp_pin', pin); showChat(res); }
-        else { store('pp_pin', null); showLogin(silent ? '' : (res && res.error) || 'Could not log in.'); }
+        if (res && res.ok) {
+          PIN = pin; store('pp_pin', pin);
+          var sess = JSON.stringify({ name: res.name, role: res.role, business: res.business, chips: res.chips });
+          var changed = load('pp_sess') !== sess;
+          store('pp_sess', sess);
+          if (!background || changed) showChat(res); // already on screen from the saved copy
+        } else {
+          store('pp_pin', null); store('pp_sess', null);
+          showLogin(silent ? '' : (res && res.error) || 'Could not log in.');
+        }
       })
       .withFailureHandler(function () {
-        showLogin(silent ? '' : 'Network problem. Try again.');
+        if (!background) showLogin(silent ? '' : 'Network problem. Try again.');
       })
       .apiLogin(pin);
   }
@@ -427,6 +448,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbydoJ2Mdzp2NRfLjEDwT89hj9
             btn('✓ Save', '', function () { send(text, true); });
           }
         }
+        if (res.kind === 'error' && res.suggest) btn('✓ Use: ' + res.suggest, '', function () { send(res.suggest, true); });
         btn('✎ Edit', 'sec', function () { $('txt').value = text; $('txt').focus(); });
         wait.appendChild(row);
         $('log').scrollTop = $('log').scrollHeight;
@@ -441,10 +463,17 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbydoJ2Mdzp2NRfLjEDwT89hj9
   $('go').onclick = function () { login($('pin').value.trim(), false); };
   $('pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') login($('pin').value.trim(), false); });
   $('bar').addEventListener('submit', function (e) { e.preventDefault(); send($('txt').value); });
-  $('logout').onclick = function () { store('pp_pin', null); PIN = ''; showLogin(''); };
+  $('logout').onclick = function () { store('pp_pin', null); store('pp_sess', null); PIN = ''; showLogin(''); };
 
   var saved = load('pp_pin');
-  if (saved) login(saved, true); else $('pin').focus();
+  var sess = null;
+  try { sess = JSON.parse(load('pp_sess') || 'null'); } catch (e) { sess = null; }
+  if (saved && sess && sess.name) {
+    PIN = saved;
+    showChat({ ok: true, name: sess.name, role: sess.role, business: sess.business, chips: sess.chips || [] }); // instant
+    login(saved, true, true); // re-check the PIN in the background (also wakes the server up)
+  } else if (saved) login(saved, true);
+  else $('pin').focus();
 })();
 </script>
 </body>
